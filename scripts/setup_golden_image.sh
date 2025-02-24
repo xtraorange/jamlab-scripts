@@ -26,11 +26,10 @@ systemctl enable --now qemu-guest-agent
 
 # Harden SSH
 echo "Configuring SSH Security..."
-sed -i 's/^#*\(PermitRootLogin\).*/\1 no/' /etc/ssh/sshd_config
+sed -i 's/^#*\(PermitRootLogin\).*/\1 prohibit-password/' /etc/ssh/sshd_config
 sed -i 's/^#*\(PasswordAuthentication\).*/\1 no/' /etc/ssh/sshd_config
 sed -i 's/^#*\(ChallengeResponseAuthentication\).*/\1 no/' /etc/ssh/sshd_config
 echo "MaxAuthTries 3" >> /etc/ssh/sshd_config
-echo "AllowUsers ansible" >> /etc/ssh/sshd_config
 systemctl restart sshd
 
 # Configure Fail2Ban
@@ -60,12 +59,8 @@ echo "Creating Ansible User..."
 useradd -m -s /bin/bash ansible
 echo "ansible ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/ansible
 
-# Install Teleport
-echo "Installing Teleport..."
-curl https://goteleport.com/static/install.sh | bash
-
-# Disable Root Login
-passwd -l root
+# Disable Root Login after Cloud-Init
+echo "passwd: { root: locked }" >> /etc/cloud/cloud.cfg.d/99-disable-root.cfg
 
 # Kernel Hardening via Sysctl
 echo "Applying Kernel Hardening Settings..."
@@ -95,11 +90,13 @@ systemctl disable --now cups
 systemctl disable --now bluetooth
 
 # Cloud-Init Cleanup for VM Cloning
-cloud-init clean --logs
+cloud-init clean
+rm -rf /var/lib/cloud/instances
+rm -rf /var/lib/cloud/seed
+rm -rf /var/lib/cloud/instance
 
 # Clear machine ID for uniqueness in clones
-rm -f /etc/machine-id
-systemd-machine-id-setup
+truncate -s 0 /etc/machine-id
 
 # Clean Up
 apt autoremove -y
