@@ -39,7 +39,6 @@ teleport:
   auth_token: "$TELEPORT_TOKEN"
   auth_servers:
     - "$AUTH_SERVER"
-  insecure_skip_verify: true
 auth_service:
   enabled: "no"
 ssh_service:
@@ -49,6 +48,6 @@ proxy_service:
 EOF
 
 echo "🔹 Starting Teleport..."
-teleport start --config=$CONFIG_PATH &
+teleport start --config=$CONFIG_PATH --insecure &
 
 echo "✅ Teleport installation complete. The node should now be visible in the cluster."
