@@ -26,8 +26,8 @@ echo "🔹 Installing Teleport..."
 apt update && apt install -y teleport
 
 echo "🔹 Configuring Teleport..."
-mkdir -p $(dirname $CONFIG_PATH)
-cat > $CONFIG_PATH <<EOF
+mkdir -p /etc/teleport
+cat > "$CONFIG_PATH" <<EOF
 teleport:
   nodename: "$NODE_NAME"
   data_dir: "/var/lib/teleport"
@@ -42,19 +42,26 @@ teleport:
 
 auth_service:
   enabled: "no"
-  allow_user_creation: true  # Allow Teleport to create users dynamically
+  allow_user_creation: true 
 
 ssh_service:
   enabled: "yes"
   pam:
-    enabled: true  # Enable PAM authentication so Teleport can create users dynamically
-  
+    enabled: true 
 
 proxy_service:
   enabled: "no"
 EOF
 
-echo "🔹 Starting Teleport..."
-teleport start --config=$CONFIG_PATH --insecure &
+echo "🔹 Setting correct permissions for Teleport..."
+chmod 600 "$CONFIG_PATH"
+chown root:root "$CONFIG_PATH"
+
+echo "🔹 Updating Teleport service to use --insecure..."
+sed -i 's|ExecStart=.*|ExecStart=/usr/local/bin/teleport start --config=/etc/teleport.yaml --insecure|' /lib/systemd/system/teleport.service
+
+echo "🔹 Reloading and restarting Teleport..."
+systemctl daemon-reload
+systemctl enable --now teleport
 
 echo "✅ Teleport installation complete. The node should now be visible in the cluster."
