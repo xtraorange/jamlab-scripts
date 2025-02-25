@@ -1,6 +1,12 @@
 #!/bin/bash
 set -eux
 
+# Ensure script is run as root
+if [[ $EUID -ne 0 ]]; then
+    echo "❌ Error: This script must be run as root. Please use 'sudo' or run as root user."
+    exit 1
+fi
+
 echo "Starting Golden Image Setup..."
 
 # Update and install required packages
