@@ -120,8 +120,14 @@ aa-enforce /etc/apparmor.d/*
 systemctl enable --now prometheus-node-exporter
 
 # Disable Unneeded Services (But Keep Avahi)
-systemctl disable --now cups
-systemctl disable --now bluetooth
+# Disable Unneeded Services (If Installed)
+if systemctl list-unit-files | grep -q "^cups.service"; then
+    systemctl disable --now cups
+fi
+if systemctl list-unit-files | grep -q "^bluetooth.service"; then
+    systemctl disable --now bluetooth
+fi
+
 
 # Cloud-Init Cleanup for VM Cloning (Only If Needed)
 if [ -d "/var/lib/cloud/instances" ]; then
