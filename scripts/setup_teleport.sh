@@ -6,21 +6,23 @@ if [[ $EUID -ne 0 ]]; then
     exit 1
 fi
 
-if [[ -z "${1:-}" ]]; then
-    echo "❌ Error: No Teleport Proxy IP provided. Usage: sudo bash setup_teleport.sh <TELEPORT_PROXY_IP> <TOKEN>"
+# Define variables for clarity
+TELEPORT_PROXY="${TELEPORT_PROXY:-}"
+TELEPORT_TOKEN="${TELEPORT_TOKEN:-}"
+
+if [[ -z "$TELEPORT_PROXY" ]]; then
+    echo "❌ Error: No Teleport Proxy IP provided. Set TELEPORT_PROXY=<IP> before running."
     exit 1
 fi
 
-if [[ -z "${2:-}" ]]; then
-    echo "❌ Error: No token provided. Run 'tctl nodes add --roles=node' to generate one."
+if [[ -z "$TELEPORT_TOKEN" ]]; then
+    echo "❌ Error: No token provided. Set TELEPORT_TOKEN=<TOKEN> before running."
     exit 1
 fi
 
-TELEPORT_PROXY="$1"
 AUTH_SERVER="${TELEPORT_PROXY}:3025"
 NODE_NAME=$(hostname)
 CONFIG_PATH="/etc/teleport.yaml"
-TELEPORT_TOKEN="$2"
 
 echo "🔹 Installing Teleport..."
 apt update && apt install -y teleport
