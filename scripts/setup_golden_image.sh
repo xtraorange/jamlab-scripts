@@ -21,8 +21,25 @@ apt install -y \
     python3 cloud-init qemu-guest-agent \
     python3-apt python3-setuptools python3-venv
 
-# Enable unattended upgrades
-dpkg-reconfigure -plow unattended-upgrades
+# Preconfigure Unattended Upgrades (No Prompt)
+echo "Configuring Unattended Upgrades..."
+cat > /etc/apt/apt.conf.d/20auto-upgrades <<EOF
+APT::Periodic::Update-Package-Lists "1";
+APT::Periodic::Unattended-Upgrade "1";
+EOF
+
+cat > /etc/apt/apt.conf.d/50unattended-upgrades <<EOF
+Unattended-Upgrade::Allowed-Origins {
+    "\${distro_id}:\${distro_codename}";
+    "\${distro_id}:\${distro_codename}-security";
+};
+Unattended-Upgrade::Package-Blacklist {};
+Unattended-Upgrade::Automatic-Reboot "true";
+Unattended-Upgrade::Automatic-Reboot-Time "03:00";
+EOF
+
+# Enable unattended-upgrades
+systemctl enable --now unattended-upgrades
 
 # Configure Needrestart to auto-restart services
 echo "\$nrconf{restart} = 'a';" > /etc/needrestart/conf.d/restart.conf
@@ -30,27 +47,29 @@ echo "\$nrconf{restart} = 'a';" > /etc/needrestart/conf.d/restart.conf
 # Enable QEMU Guest Agent for Proxmox
 systemctl enable --now qemu-guest-agent
 
-# Harden SSH
+# Harden SSH (Avoid Duplicates)
 echo "Configuring SSH Security..."
 sed -i 's/^#*\(PermitRootLogin\).*/\1 prohibit-password/' /etc/ssh/sshd_config
 sed -i 's/^#*\(PasswordAuthentication\).*/\1 no/' /etc/ssh/sshd_config
 sed -i 's/^#*\(ChallengeResponseAuthentication\).*/\1 no/' /etc/ssh/sshd_config
-echo "MaxAuthTries 3" >> /etc/ssh/sshd_config
+grep -qxF "MaxAuthTries 3" /etc/ssh/sshd_config || echo "MaxAuthTries 3" >> /etc/ssh/sshd_config
 systemctl restart sshd
 
-# Configure Fail2Ban
-echo "Configuring Fail2Ban..."
-cat > /etc/fail2ban/jail.local <<EOF
+# Configure Fail2Ban (Only If Missing)
+if [ ! -f "/etc/fail2ban/jail.local" ]; then
+    cat > /etc/fail2ban/jail.local <<EOF
 [sshd]
 enabled = true
 bantime = 3600
 findtime = 600
 maxretry = 5
 EOF
-systemctl restart fail2ban
+    systemctl restart fail2ban
+fi
 
-# Enable Recidive Mode (Longer Ban for Repeat Offenders)
-cat > /etc/fail2ban/jail.d/recidive.conf <<EOF
+# Enable Recidive Mode (Only If Missing)
+if [ ! -f "/etc/fail2ban/jail.d/recidive.conf" ]; then
+    cat > /etc/fail2ban/jail.d/recidive.conf <<EOF
 [recidive]
 enabled = true
 logpath = /var/log/fail2ban.log
@@ -58,17 +77,26 @@ bantime = 86400  # 1-day ban
 findtime = 86400
 maxretry = 5
 EOF
-systemctl restart fail2ban
+    systemctl restart fail2ban
+fi
 
-# Create Ansible User (SSH Key will be added via Cloud-Init)
-echo "Creating Ansible User..."
-useradd -m -s /bin/bash ansible
-echo "ansible ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/ansible
+# Create Ansible User (If Not Exists)
+if ! id "ansible" &>/dev/null; then
+    echo "Creating Ansible User..."
+    useradd -m -s /bin/bash ansible
+    echo "ansible ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/ansible
+fi
+
+# Ensure Cloud-Init Doesn't Override Ansible User
+if ! grep -q "ansible" /etc/cloud/cloud.cfg; then
+    echo "Adding Ansible User to Cloud-Init..."
+    sed -i '/disable_root:/a - ansible' /etc/cloud/cloud.cfg
+fi
 
 # Disable Root Login after Cloud-Init
-echo "passwd: { root: locked }" >> /etc/cloud/cloud.cfg.d/99-disable-root.cfg
+echo "passwd: { root: locked }" > /etc/cloud/cloud.cfg.d/99-disable-root.cfg
 
-# Kernel Hardening via Sysctl
+# Kernel Hardening via Sysctl (Avoid Duplicates)
 echo "Applying Kernel Hardening Settings..."
 cat > /etc/sysctl.d/99-security.conf <<EOF
 # Disable ICMP redirects (security risk)
@@ -95,14 +123,16 @@ systemctl enable --now prometheus-node-exporter
 systemctl disable --now cups
 systemctl disable --now bluetooth
 
-# Cloud-Init Cleanup for VM Cloning
-cloud-init clean
-rm -rf /var/lib/cloud/instances
-rm -rf /var/lib/cloud/seed
-rm -rf /var/lib/cloud/instance
+# Cloud-Init Cleanup for VM Cloning (Only If Needed)
+if [ -d "/var/lib/cloud/instances" ]; then
+    cloud-init clean
+    rm -rf /var/lib/cloud/instances /var/lib/cloud/seed /var/lib/cloud/instance
+fi
 
-# Clear machine ID for uniqueness in clones
-truncate -s 0 /etc/machine-id
+# Clear machine ID for uniqueness in clones (Only If Needed)
+if [[ ! -f "/etc/machine-id" || "$(stat -c %s /etc/machine-id)" -eq 0 ]]; then
+    truncate -s 0 /etc/machine-id
+fi
 
 # Clean Up
 apt autoremove -y
