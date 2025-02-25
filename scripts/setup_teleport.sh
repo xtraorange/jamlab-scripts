@@ -19,7 +19,7 @@ fi
 TELEPORT_PROXY="$1"
 AUTH_SERVER="${TELEPORT_PROXY}:3025"
 NODE_NAME=$(hostname)
-CONFIG_PATH="/etc/teleport/teleport.yaml"
+CONFIG_PATH="/etc/teleport.yaml"
 TELEPORT_TOKEN="$2"
 
 echo "🔹 Installing Teleport..."
