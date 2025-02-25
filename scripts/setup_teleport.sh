@@ -42,7 +42,6 @@ teleport:
 
 auth_service:
   enabled: "no"
-  allow_user_creation: true 
 
 ssh_service:
   enabled: "yes"
