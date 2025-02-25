@@ -39,10 +39,16 @@ teleport:
   auth_token: "$TELEPORT_TOKEN"
   auth_servers:
     - "$AUTH_SERVER"
+
 auth_service:
   enabled: "no"
+
 ssh_service:
   enabled: "yes"
+  pam:
+    enabled: true  # Enable PAM authentication so Teleport can create users dynamically
+  allow_user_creation: true  # Allow Teleport to create users dynamically
+
 proxy_service:
   enabled: "no"
 EOF
