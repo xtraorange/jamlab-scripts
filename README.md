@@ -1,2 +1,2 @@
-# JamLabTools
- A collection of tools and docs for JamLab
+# JamLabm tools
+ A collection of public facing scripts I use.
