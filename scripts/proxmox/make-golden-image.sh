@@ -10,7 +10,7 @@
 #   - picks the storage for VM disks, the VM ID (first free from 9000) and the bridge
 #   - downloads the Ubuntu cloud image, verifies its checksum, installs qemu-guest-agent into it
 #   - creates the VM, sets up cloud-init (user "ansible" with those keys, passwordless sudo, key-only),
-#     converts it to a template and protects it against deletion
+#     converts it to a template
 #   - is safe to run again: if the template already exists on this node it says so and stops
 #
 # The image holds only what Ansible needs to reach a new VM. Users, updates, SSH hardening,
@@ -149,12 +149,10 @@ qm set "$VMID" --ciuser "$CI_USER" --sshkeys "$WORKDIR/keys.pub" --ipconfig0 ip=
 
 # ---- finish --------------------------------------------------------------------------------
 qm template "$VMID"
-# Protection blocks deleting the VM or its disks until you clear it (qm set <id> --protection 0).
-qm set "$VMID" --protection 1
 
 cat <<EOF
 
-Golden image ready: VM ${VMID} (${NAME}) on ${NODE}, protected against deletion.
+Golden image ready: VM ${VMID} (${NAME}) on ${NODE}.
 
 Make a new VM from it with the clone script, for example:
   curl -fsSL https://raw.githubusercontent.com/xtraorange/jamlab-scripts/main/scripts/proxmox/clone-vm.sh | bash -s -- docker-dns --vlan 20 --ip 10.10.20.5/24 --gw 10.10.20.1 --start

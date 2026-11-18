@@ -12,10 +12,10 @@ Run it once per node that will host VMs (unless your storage is shared).
 curl -fsSL https://raw.githubusercontent.com/xtraorange/jamlab-scripts/main/scripts/proxmox/make-golden-image.sh | bash
 ```
 
-The second clones the template into a new VM with its name, VLAN and IP set through cloud-init:
+The second clones the template into a new VM with its name and VLAN set through cloud-init. The address comes from DHCP (add `--ip CIDR --gw ADDRESS` only for a static one):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/xtraorange/jamlab-scripts/main/scripts/proxmox/clone-vm.sh | bash -s -- docker-dns --vlan 20 --ip 10.10.20.5/24 --gw 10.10.20.1 --dns 1.1.1.1 --start
+curl -fsSL https://raw.githubusercontent.com/xtraorange/jamlab-scripts/main/scripts/proxmox/clone-vm.sh | bash -s -- docker-dns --id 104 --vlan 4 --dns 1.1.1.1
 ```
 
 Run either with `--help` (clone) or read the header of the script (build) for the options. After cloning, add

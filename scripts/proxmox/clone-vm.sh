@@ -2,12 +2,12 @@
 # Clone the golden image into a new VM, with its name, VLAN and IP set through cloud-init.
 # Run as root on the Proxmox node that holds the template (it finds the template by name itself).
 #
-#   curl -fsSL https://raw.githubusercontent.com/xtraorange/jamlab-scripts/main/scripts/proxmox/clone-vm.sh | bash -s -- NAME --vlan N --ip CIDR --gw GATEWAY [options]
+#   curl -fsSL https://raw.githubusercontent.com/xtraorange/jamlab-scripts/main/scripts/proxmox/clone-vm.sh | bash -s -- NAME --vlan N [--ip CIDR --gw GATEWAY] [options]
 #
 # Required:
 #   NAME            VM name; cloud-init also uses it as the hostname (match the Ansible inventory name)
 #   --vlan N        VLAN tag for the NIC (use --vlan 0 for untagged)
-#   --ip CIDR       static address such as 10.10.20.5/24, or "dhcp"
+#   --ip CIDR       static address such as 10.10.20.5/24 (default: dhcp)
 #   --gw ADDRESS    default gateway (not needed with --ip dhcp)
 # Optional:
 #   --id N          VM ID (default: next free ID in the cluster)
@@ -21,7 +21,7 @@
 #   --start         start the VM when done
 #
 # Example:
-#   curl -fsSL https://raw.githubusercontent.com/xtraorange/jamlab-scripts/main/scripts/proxmox/clone-vm.sh | bash -s -- docker-dns --vlan 20 --ip 10.10.20.5/24 --gw 10.10.20.1 --dns 1.1.1.1 --start
+#   curl -fsSL https://raw.githubusercontent.com/xtraorange/jamlab-scripts/main/scripts/proxmox/clone-vm.sh | bash -s -- docker-dns --vlan 4 --dns 1.1.1.1 --start
 #
 # Do not point a DNS server's own VM at itself: give the DNS VM a public resolver with --dns.
 set -euo pipefail
@@ -32,12 +32,12 @@ usage() {
 Clone the golden image into a new VM, with its name, VLAN and IP set through cloud-init.
 Run as root on the Proxmox node that holds the template (it finds the template by name itself).
 
-  curl -fsSL https://raw.githubusercontent.com/xtraorange/jamlab-scripts/main/scripts/proxmox/clone-vm.sh | bash -s -- NAME --vlan N --ip CIDR --gw GATEWAY [options]
+  curl -fsSL https://raw.githubusercontent.com/xtraorange/jamlab-scripts/main/scripts/proxmox/clone-vm.sh | bash -s -- NAME --vlan N [--ip CIDR --gw GATEWAY] [options]
 
 Required:
   NAME            VM name; also the hostname (match the Ansible inventory name)
   --vlan N        VLAN tag for the NIC (0 = untagged)
-  --ip CIDR       static address such as 10.10.20.5/24, or "dhcp"
+  --ip CIDR       static address such as 10.10.20.5/24 (default: dhcp)
   --gw ADDRESS    default gateway (not needed with --ip dhcp)
 Optional:
   --id N          VM ID (default: next free ID in the cluster)
@@ -69,7 +69,7 @@ fi
 command -v qm >/dev/null || die "qm not found: this must run on a Proxmox node"
 
 NAME="$1"; shift
-TEMPLATE=""; BRIDGE=vmbr0; VLAN=""; IP=""; GW=""; VMID=""; CORES=""; MEMORY=""
+TEMPLATE=""; BRIDGE=vmbr0; VLAN=""; IP="dhcp"; GW=""; VMID=""; CORES=""; MEMORY=""
 DISK_ADD=""; DNS=""; SEARCH=""; START=0
 
 while [ $# -gt 0 ]; do
@@ -93,7 +93,6 @@ done
 
 [[ "$NAME" =~ ^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?$ ]] || die "NAME must be a valid hostname (letters, digits, hyphens)"
 [ -n "$VLAN" ] || die "--vlan is required (use 0 for untagged)"
-[ -n "$IP" ] || die "--ip is required (CIDR or dhcp)"
 if [ "$IP" != "dhcp" ]; then
   [[ "$IP" == */* ]] || die "--ip must include the prefix length, for example 10.10.20.5/24"
   [ -n "$GW" ] || die "--gw is required with a static IP"
@@ -122,7 +121,7 @@ qm clone "$TEMPLATE" "$VMID" --name "$NAME" --full 1
 
 NET="virtio,bridge=${BRIDGE}"
 [ "$VLAN" = "0" ] || NET="${NET},tag=${VLAN}"
-qm set "$VMID" --net0 "$NET" --onboot 1
+qm set "$VMID" --net0 "$NET" --onboot 1 --protection 0
 
 if [ "$IP" = "dhcp" ]; then
   qm set "$VMID" --ipconfig0 ip=dhcp
