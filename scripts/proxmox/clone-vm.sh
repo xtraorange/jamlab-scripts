@@ -61,12 +61,13 @@ PVE_NODES="${PVE_NODES:-/etc/pve/nodes}"   # only changed by tests
 NODE="${GOLDEN_NODE:-$(hostname)}"          # GOLDEN_NODE is only for tests
 TEMPLATE_NAME="${GOLDEN_NAME:-ubuntu-golden}"
 
+case "${1:-}" in ""|-h|--help) usage ;; esac   # help needs no root
+
 if [ "${ALLOW_NONROOT:-0}" != "1" ]; then   # ALLOW_NONROOT is only for tests
   [ "$(id -u)" -eq 0 ] || die "run as root on a Proxmox node"
 fi
 command -v qm >/dev/null || die "qm not found: this must run on a Proxmox node"
 
-case "${1:-}" in ""|-h|--help) usage ;; esac
 NAME="$1"; shift
 TEMPLATE=""; BRIDGE=vmbr0; VLAN=""; IP=""; GW=""; VMID=""; CORES=""; MEMORY=""
 DISK_ADD=""; DNS=""; SEARCH=""; START=0
